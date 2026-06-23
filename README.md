@@ -2,7 +2,8 @@
 
 An automated, white-labelled React reporting platform that converts raw data pipelines into interactive strategic dashboards. It empowers Brew Digital's enterprise clients with real-time performance insights, technical SEO metrics, and AI-driven commentaries validated by human analysts.
 
-![Client Portal Dashboard Overview](./docs/dashboard.png)
+<img width="3068" height="2733" alt="SCR-20260623-naeg" src="https://github.com/user-attachments/assets/7546c534-3a4c-4348-8aea-1c5fc3d4ecb0" />
+
 
 ---
 
@@ -13,6 +14,9 @@ An automated, white-labelled React reporting platform that converts raw data pip
 - **Dynamic Integrations:** Fully customisable SE Ranking API clients supporting project-level parameterization and specific client endpoint overrides.
 - **Robust CSV Parsers:** Automated browser-side cleanup filters built for GA4, Google Search Console, and Screaming Frog exports that programmatically strip file header noise.
 - **Non-Destructive Syncs:** Deep PostgreSQL database-level JSONB merges that prevent automatic API synchronisations from overwriting manually uploaded search data.
+
+
+<img width="3070" height="5341" alt="SCR-20260623-nhki" src="https://github.com/user-attachments/assets/6b47a130-45ea-4d29-9792-67c9b945f1b8" />
 
 ---
 
