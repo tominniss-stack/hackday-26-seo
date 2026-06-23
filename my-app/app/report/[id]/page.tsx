@@ -28,6 +28,7 @@ interface ReportData {
     custom_ai_prompt: string | null;
     secure_access_token: string;
   };
+  manual_priorities: import('@/lib/priority-calculator').ManualPriority[] | null;
   metrics: Array<{
     id: string;
     metric_category: string;
@@ -224,6 +225,7 @@ function PortalContent() {
                 reportingMonth={report.reporting_month}
                 visibleWidgets={visibleWidgets}
                 reportType={reportType}
+                manualPriorities={report.manual_priorities}
               />
             )}
           </div>

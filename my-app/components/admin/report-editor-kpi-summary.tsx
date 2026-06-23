@@ -16,19 +16,26 @@ interface KPIItem {
 }
 
 export function ReportEditorKPISummary({ metrics }: KPISummaryProps) {
-  // Calculate total GSC clicks from top queries
-  const totalClicks = metrics.gsc_top_queries?.reduce((sum, q) => sum + q.clicks, 0) || 0;
-  const totalImpressions = metrics.gsc_top_queries?.reduce((sum, q) => sum + q.impressions, 0) || 0;
-  const avgPosition = metrics.gsc_top_queries?.length
-    ? metrics.gsc_top_queries.reduce((sum, q) => sum + q.position, 0) / metrics.gsc_top_queries.length
+  // Coerce any value to a finite number so a malformed query row never yields NaN.
+  const safeNum = (v: unknown): number => {
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // Calculate total GSC clicks from top queries (NaN-safe)
+  const queries = metrics.gsc_top_queries ?? [];
+  const totalClicks = queries.reduce((sum, q) => sum + safeNum(q?.clicks), 0);
+  const totalImpressions = queries.reduce((sum, q) => sum + safeNum(q?.impressions), 0);
+  const avgPosition = queries.length
+    ? queries.reduce((sum, q) => sum + safeNum(q?.position), 0) / queries.length
     : 0;
 
-  const indexablePages = (metrics.total_urls || 0) - (metrics.non_indexable || 0);
+  const indexablePages = Math.max(0, safeNum(metrics.total_urls) - safeNum(metrics.non_indexable));
 
   const kpis: KPIItem[] = [
     {
       label: 'GA4 Sessions',
-      value: metrics.ga4_sessions?.toLocaleString() || '0',
+      value: safeNum(metrics.ga4_sessions).toLocaleString(),
       trend: 'neutral',
     },
     {
@@ -57,11 +64,11 @@ export function ReportEditorKPISummary({ metrics }: KPISummaryProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {kpis.map((kpi, idx) => (
             <div key={idx} className="space-y-1">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">
+              <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">
                 {kpi.label}
               </p>
               <div className="flex items-baseline gap-2">
-                <p className="text-lg font-semibold text-slate-900">{kpi.value}</p>
+                <p className="text-3xl font-bold tracking-tight tabular-nums text-slate-900">{kpi.value}</p>
                 {kpi.change !== undefined && kpi.change !== 0 && (
                   <div className={`flex items-center gap-0.5 text-xs font-medium ${
                     kpi.trend === 'up' ? 'text-emerald-600' :

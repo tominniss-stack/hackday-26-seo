@@ -128,6 +128,6 @@ export interface UnifiedMetrics {
     screaming_frog?: 'api' | 'csv' | 'skipped';
     ga4?: 'api' | 'csv' | 'skipped';
     gsc?: 'api' | 'csv' | 'skipped';
-    seranking?: 'api' | 'mock' | 'skipped';
+    seranking?: 'api' | 'skipped';
   };
 }

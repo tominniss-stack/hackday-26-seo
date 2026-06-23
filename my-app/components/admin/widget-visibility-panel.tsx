@@ -65,7 +65,7 @@ export function WidgetVisibilityPanel({ reportId, initialWidgets, onSaved }: Wid
             Save Layout
           </Button>
         </div>
-        <p className="text-[10px] text-slate-400 mt-0.5">
+        <p className="text-[11px] text-slate-500 mt-0.5">
           Toggle which sections appear on the client portal.
         </p>
       </CardHeader>

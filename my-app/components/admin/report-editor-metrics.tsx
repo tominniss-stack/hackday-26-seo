@@ -129,7 +129,7 @@ export function ReportEditorMetrics({ metrics, visibleWidgets }: ReportEditorMet
                   }`}
                 >
                   <p className="text-xl font-bold text-slate-900 tabular-nums">{s.value.toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{s.label}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{s.label}</p>
                   {s.urls && s.urls.length > 0 && (
                     <p className="text-[9px] text-blue-500 mt-0.5">Click to drill down</p>
                   )}
@@ -191,7 +191,7 @@ export function ReportEditorMetrics({ metrics, visibleWidgets }: ReportEditorMet
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">
               GA4 Traffic
-              <span className="ml-2 text-[10px] font-normal text-slate-400">
+              <span className="ml-2 text-[11px] font-normal text-slate-500">
                 {metrics.ga4_sessions?.toLocaleString()} sessions · {metrics.ga4_active_users?.toLocaleString()} active users
               </span>
             </CardTitle>
@@ -217,7 +217,7 @@ export function ReportEditorMetrics({ metrics, visibleWidgets }: ReportEditorMet
                 </TableBody>
               </Table>
             ) : (
-              <p className="text-xs text-slate-400">No channel breakdown available.</p>
+              <p className="text-xs text-slate-500">No channel breakdown available.</p>
             )}
           </CardContent>
         </Card>
@@ -257,7 +257,7 @@ export function ReportEditorMetrics({ metrics, visibleWidgets }: ReportEditorMet
       )}
 
       {!hasGA4 && !hasGSC && (
-        <p className="text-xs text-slate-400 italic">No GA4 or GSC data available. Use Auto-Sync or upload CSVs to populate.</p>
+        <p className="text-xs text-slate-500 italic">No GA4 or GSC data available. Use Auto-Sync or upload CSVs to populate.</p>
       )}
     </div>
   );

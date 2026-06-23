@@ -176,7 +176,7 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
                 title={`Preview: ${form.primary_color_hex}`}
               />
             </div>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[11px] text-slate-500">
               This color will be used throughout the client portal for branding
             </p>
           </div>
@@ -221,7 +221,7 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
                 onChange={(e) => handleChange('logo_url', e.target.value)}
                 placeholder="https://example.com/logo.png"
               />
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 Enter a direct URL to your logo image
               </p>
             </div>
@@ -249,7 +249,7 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
                     <p className="text-sm text-slate-600 mb-1">
                       Drop logo here or click to browse
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-500">
                       PNG, JPG, SVG, WebP (max 5MB)
                     </p>
                   </>
@@ -274,7 +274,7 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-slate-900">Current Logo</p>
-                <p className="text-[10px] text-slate-500 truncate">
+                <p className="text-[11px] text-slate-500 truncate">
                   {logoMode === 'upload' ? form.logo_storage_path : form.logo_url}
                 </p>
               </div>
@@ -295,13 +295,13 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
         <div className="space-y-3 pt-4 border-t border-slate-200">
           <div>
             <Label className="text-xs font-medium">Advanced Theme Overrides</Label>
-            <p className="text-[10px] text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               Leave blank to auto-generate complementary colors from primary
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="secondary_color" className="text-[10px] text-slate-500">
+              <Label htmlFor="secondary_color" className="text-[11px] text-slate-500">
                 Secondary Color
               </Label>
               <Input
@@ -313,7 +313,7 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="accent_color" className="text-[10px] text-slate-500">
+              <Label htmlFor="accent_color" className="text-[11px] text-slate-500">
                 Accent Color
               </Label>
               <Input
@@ -337,7 +337,7 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
             placeholder="e.g. This client is a B2B SaaS company targeting enterprise HR teams in the UK. They are in a competitive market with Workday and SAP..."
             className="resize-none text-sm"
           />
-          <p className="text-[10px] text-slate-400">Injected into every AI generation prompt as client background context.</p>
+          <p className="text-[11px] text-slate-500">Injected into every AI generation prompt as client background context.</p>
         </div>
 
         {/* Contact Information */}

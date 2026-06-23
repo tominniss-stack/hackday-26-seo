@@ -130,7 +130,7 @@ export function SettingsView({ clientColor, clientId }: SettingsViewProps) {
                     <p className="text-xs text-slate-600 mb-0.5">
                       Drop avatar or click to browse
                     </p>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       PNG, JPG, WebP (max 2MB)
                     </p>
                   </>
@@ -161,7 +161,7 @@ export function SettingsView({ clientColor, clientId }: SettingsViewProps) {
                 disabled
                 className="bg-slate-50"
               />
-              <p className="text-[10px] text-slate-400">Email cannot be changed</p>
+              <p className="text-[11px] text-slate-500">Email cannot be changed</p>
             </div>
           </div>
 

@@ -190,28 +190,28 @@ export function PPCView({ clientColor, reportingMonth, campaigns }: PPCViewProps
                         </div>
                         <div className="flex items-center gap-4 md:gap-6 text-sm shrink-0">
                           <div className="text-center hidden sm:block">
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">Spend</p>
+                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">Spend</p>
                             <p className="font-semibold text-slate-900 tabular-nums">
                               {formatCurrency(campaign.spend)}
                             </p>
                             <MoMBadge {...spendMoM} invertColors />
                           </div>
                           <div className="text-center">
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">Conv.</p>
+                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">Conv.</p>
                             <p className="font-semibold text-slate-900 tabular-nums">
                               {campaign.conversions}
                             </p>
                             <MoMBadge {...convMoM} />
                           </div>
                           <div className="text-center hidden md:block">
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">CPA</p>
+                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">CPA</p>
                             <p className="font-semibold text-slate-900 tabular-nums">
                               {formatCurrency(campaign.cpa)}
                             </p>
                             <MoMBadge {...cpaMoM} invertColors />
                           </div>
                           <div className="text-center">
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">ROAS</p>
+                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">ROAS</p>
                             <p className="font-semibold tabular-nums" style={{ color: clientColor }}>
                               {campaign.roas}x
                             </p>
@@ -287,11 +287,11 @@ export function PPCView({ clientColor, reportingMonth, campaigns }: PPCViewProps
                               </p>
                               <div className="flex items-center gap-4 pt-2 border-t border-slate-100">
                                 <div className="text-center">
-                                  <p className="text-[10px] text-slate-400">CTR</p>
+                                  <p className="text-[11px] text-slate-500">CTR</p>
                                   <p className="text-xs font-semibold text-slate-700">{creative.ctr}</p>
                                 </div>
                                 <div className="text-center">
-                                  <p className="text-[10px] text-slate-400">Conversions</p>
+                                  <p className="text-[11px] text-slate-500">Conversions</p>
                                   <p className="text-xs font-semibold text-slate-700">{creative.conversions}</p>
                                 </div>
                               </div>

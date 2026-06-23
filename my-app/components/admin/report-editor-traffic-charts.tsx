@@ -42,7 +42,7 @@ export function ReportEditorTrafficCharts({ metrics }: TrafficChartsProps) {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[200px] flex items-center justify-center text-sm text-slate-400">
+            <div className="h-[200px] flex items-center justify-center text-sm text-slate-500">
               No GA4 channel data available
             </div>
           )}
@@ -66,7 +66,7 @@ export function ReportEditorTrafficCharts({ metrics }: TrafficChartsProps) {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[200px] flex items-center justify-center text-sm text-slate-400">
+            <div className="h-[200px] flex items-center justify-center text-sm text-slate-500">
               No GSC query data available
             </div>
           )}

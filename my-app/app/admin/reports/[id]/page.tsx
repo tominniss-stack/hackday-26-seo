@@ -10,8 +10,8 @@ import { ReportEditorOffsiteMetrics } from '@/components/admin/report-editor-off
 import { ReportEditorNarrativeSection } from '@/components/admin/report-editor-narrative-section';
 import { ReportStatusBadge } from '@/components/admin/report-status-badge';
 import { ReportPublishBar } from '@/components/admin/report-publish-bar';
-import { TopPrioritiesCard } from '@/components/admin/top-priorities-card';
-import { calculateReportPriorities } from '@/lib/priority-calculator';
+import { ReportEditorPriorities } from '@/components/admin/report-editor-priorities';
+import type { ManualPriority } from '@/lib/priority-calculator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,6 +32,7 @@ interface ReportData {
   report_context_prompt: string | null;
   analyst_notes: Record<string, string> | null;
   visible_widgets: Record<string, boolean> | null;
+  manual_priorities: ManualPriority[] | null;
   client: {
     id: string;
     company_name: string;
@@ -257,8 +258,13 @@ export default function ReportEditorPage() {
             </CardContent>
           </Card>
 
-          {/* Row 1: Top Priorities (Full Width) */}
-          <TopPrioritiesCard priorities={calculateReportPriorities(metrics)} />
+          {/* Row 1: Top Priorities (Full Width, editable) */}
+          <ReportEditorPriorities
+            reportId={reportId}
+            metrics={metrics}
+            initialManual={report.manual_priorities}
+            onUpdate={fetchReport}
+          />
 
           {/* Row 2: KPI Summary + Executive Summary */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

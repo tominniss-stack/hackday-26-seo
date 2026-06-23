@@ -9,7 +9,7 @@ const supabase = createClient(
 );
 
 interface SyncResult {
-  method: 'api' | 'mock' | 'skipped';
+  method: 'api' | 'skipped';
   reason?: string;
   data?: Partial<UnifiedMetrics>;
 }
@@ -103,19 +103,24 @@ async function syncGSC(siteUrl: string, startDate: string, endDate: string): Pro
   }
 }
 
-async function syncSERanking(domain: string, apiKey?: string): Promise<SyncResult> {
-  const metrics = await fetchSERankingMetrics(domain, apiKey);
-  
+async function syncSERanking(
+  domain: string,
+  apiKey?: string,
+  endpointUrl?: string,
+  projectId?: string
+): Promise<SyncResult> {
+  const metrics = await fetchSERankingMetrics(domain, apiKey, endpointUrl, projectId);
+
+  // No metrics → fetch failed or was skipped. NEVER fabricate mock numbers.
   if (!metrics) {
-    return { method: 'skipped', reason: 'SE Ranking API key not configured or API unavailable' };
+    return {
+      method: 'skipped',
+      reason: 'SE Ranking fetch returned no data (not configured or API unavailable)',
+    };
   }
 
-  // Honestly reflect whether the numbers are real ('api') or fallback ('mock').
   return {
-    method: metrics.source,
-    reason: metrics.source === 'mock'
-      ? 'SE Ranking API call failed; returned sample fallback data'
-      : undefined,
+    method: 'api',
     data: {
       seranking_domain_trust: metrics.domain_trust,
       seranking_total_backlinks: metrics.total_backlinks,
@@ -158,19 +163,25 @@ export async function POST(request: NextRequest) {
         ? syncGSC(client.gsc_property_url, startDate, endDate)
         : Promise.resolve({ method: 'skipped' as const, reason: 'gsc_property_url not configured' }),
       (() => {
-        // Dynamic domain: pull from client.seranking_domain. If absent, log a
-        // warning and gracefully skip SE Ranking so the rest of the sync still
-        // succeeds (off-site metrics will read 0 / — downstream).
-        if (!client.seranking_domain) {
+        // Fully dynamic SE Ranking config. We need at least a custom endpoint
+        // URL or a project ID to build a request; otherwise skip gracefully so
+        // the rest of the sync still succeeds (off-site metrics render "—").
+        const hasEndpoint = Boolean(client.seranking_endpoint_url || client.seranking_project_id);
+        if (!hasEndpoint) {
           console.warn(
-            `[SE Ranking] seranking_domain is null for client "${client.company_name ?? client.id}". Skipping SE Ranking fetch.`
+            `[SE Ranking] No endpoint URL or project ID for client "${client.company_name ?? client.id}". Skipping SE Ranking fetch.`
           );
           return Promise.resolve({
             method: 'skipped' as const,
-            reason: 'seranking_domain not configured',
+            reason: 'seranking_endpoint_url and seranking_project_id not configured',
           });
         }
-        return syncSERanking(client.seranking_domain, client.seranking_api_key);
+        return syncSERanking(
+          client.seranking_domain ?? '',
+          client.seranking_api_key,
+          client.seranking_endpoint_url,
+          client.seranking_project_id
+        );
       })(),
     ]);
 

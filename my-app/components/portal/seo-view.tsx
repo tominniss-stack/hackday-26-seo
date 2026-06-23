@@ -28,7 +28,7 @@ import { MonthYearSelector } from './month-year-selector';
 import { MetricCard } from './metric-card';
 import { AnalystAnnotation } from './analyst-annotation';
 import { TopPrioritiesCard } from '@/components/admin/top-priorities-card';
-import { calculateReportPriorities } from '@/lib/priority-calculator';
+import { resolvePriorities, type ManualPriority } from '@/lib/priority-calculator';
 import type { ChannelMetric, GscQuery, SerankingKeyword } from '@/lib/metrics-schema';
 
 interface SEOViewProps {
@@ -53,9 +53,10 @@ interface SEOViewProps {
   reportingMonth: string;
   visibleWidgets?: Record<string, boolean>;
   reportType?: 'monthly' | 'quarterly';
+  manualPriorities?: ManualPriority[] | null;
 }
 
-export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, visibleWidgets, reportType = 'monthly' }: SEOViewProps) {
+export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, visibleWidgets, reportType = 'monthly', manualPriorities }: SEOViewProps) {
   const isVisible = (key: string) => visibleWidgets?.[key] ?? true;
 
   const totalUrls = (metrics.total_urls as number) || 0;
@@ -130,7 +131,7 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
 
       {/* Top Actionable Priorities */}
       {isVisible('top_priorities') && (
-        <TopPrioritiesCard priorities={calculateReportPriorities(metrics as any)} clientColor={clientColor} />
+        <TopPrioritiesCard priorities={resolvePriorities(metrics as any, manualPriorities)} clientColor={clientColor} />
       )}
 
       {/* Executive Summary */}
@@ -170,7 +171,7 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-sm text-slate-400">
+              <div className="h-[300px] flex items-center justify-center text-sm text-slate-500">
                 No traffic data available for this period
               </div>
             )}
@@ -304,7 +305,7 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
                     <TableCell className="text-center tabular-nums text-slate-600">
                       {(row.volume ?? 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-xs text-slate-400 font-mono truncate max-w-[200px]">
+                    <TableCell className="hidden md:table-cell text-xs text-slate-500 font-mono truncate max-w-[200px]">
                       {row.url}
                     </TableCell>
                   </TableRow>
@@ -312,7 +313,7 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
               </TableBody>
             </Table>
           ) : (
-            <div className="py-8 text-center text-sm text-slate-400">
+            <div className="py-8 text-center text-sm text-slate-500">
               No SE Ranking keyword data available. Configure a target domain and sync to populate.
             </div>
           )}
@@ -347,7 +348,7 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
               </TableBody>
             </Table>
           ) : (
-            <div className="py-8 text-center text-sm text-slate-400">
+            <div className="py-8 text-center text-sm text-slate-500">
               No GA4 channel data available for this period
             </div>
           )}

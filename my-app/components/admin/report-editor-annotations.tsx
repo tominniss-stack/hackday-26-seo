@@ -63,7 +63,7 @@ export function ReportEditorAnnotations({ reportId, initialNotes, onSaved }: Rep
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-sm">Analyst Notes</CardTitle>
-            <p className="text-[10px] text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               These notes appear on the client portal below each section's chart.
             </p>
           </div>

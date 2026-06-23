@@ -232,7 +232,7 @@ export function MetricDrillDownDialog({
         )}
 
         {!isFullData && !storagePath && displayUrls.length >= 50 && (
-          <p className="text-[10px] text-slate-400 text-center py-2">
+          <p className="text-[11px] text-slate-500 text-center py-2">
             Showing top 50 URLs. Upload a new CSV to refresh.
           </p>
         )}

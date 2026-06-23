@@ -97,7 +97,7 @@ function NarrativeBlock({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-sm">{config.title}</CardTitle>
-            <p className="text-[10px] text-slate-400 mt-0.5">{config.description}</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">{config.description}</p>
           </div>
           <div className="flex gap-2">
             {!isEmpty && (
@@ -119,7 +119,7 @@ function NarrativeBlock({
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-slate-100 rounded-lg">
             <Sparkles className="h-8 w-8 text-slate-200 mb-2" />
-            <p className="text-xs text-slate-400 mb-3">No content yet. Generate an AI draft or type manually.</p>
+            <p className="text-xs text-slate-500 mb-3">No content yet. Generate an AI draft or type manually.</p>
             <Button size="sm" onClick={handleGenerate} disabled={generating}>
               {generating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
               Generate with AI

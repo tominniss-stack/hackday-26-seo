@@ -119,10 +119,12 @@ export function DashboardView({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <img 
+          <img
             src="https://cdn.prod.website-files.com/66e0e7ec6b3ae01699e44a8c/66e0e7ec6b3ae01699e44b0e_brew-digital-logo.svg"
             alt="Brew Digital"
             className="h-8"
+            // Hide gracefully if the external asset fails so the header layout never collapses.
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
       </div>
@@ -187,7 +189,7 @@ export function DashboardView({
         </CardHeader>
         <CardContent>
           {recentReports.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400">
+            <div className="py-8 text-center text-sm text-slate-500">
               No reports published yet
             </div>
           ) : (
@@ -263,7 +265,7 @@ export function DashboardView({
           <CardContent>
             <div className="space-y-3">
               {notifications.length === 0 && (
-                <div className="py-6 text-center text-sm text-slate-400">
+                <div className="py-6 text-center text-sm text-slate-500">
                   No new notifications
                 </div>
               )}
@@ -297,7 +299,7 @@ export function DashboardView({
                         <p className="text-xs text-slate-500 mt-0.5">
                           {notification.message}
                         </p>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           {notification.timestamp}
                         </p>
                       </div>
@@ -328,7 +330,7 @@ export function DashboardView({
           <CardContent>
             <div className="space-y-3">
               {activeTickets.length === 0 && (
-                <div className="py-6 text-center text-sm text-slate-400">
+                <div className="py-6 text-center text-sm text-slate-500">
                   No active requests
                 </div>
               )}

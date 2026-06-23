@@ -90,7 +90,7 @@ function FileDropzone({
           {file ? (
             <p className="text-[10px] text-emerald-600 truncate">{file.name}</p>
           ) : (
-            <p className="text-[10px] text-slate-400">{slot.description} — drag or click</p>
+            <p className="text-[11px] text-slate-500">{slot.description} — drag or click</p>
           )}
         </div>
       </div>
@@ -124,8 +124,31 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
 
   const createReportRecord = async (): Promise<string> => {
     const reportDate = `${reportingMonth}-01`;
-    
-    // Create single report with selected category
+
+    // Find-or-reuse: a unique constraint (client + month + category) prevents
+    // duplicate reports. When "redoing" a report for an existing month we must
+    // reuse the existing row rather than insert (which throws 23505).
+    const { data: existing } = await (supabase as any)
+      .from('reports')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('reporting_month', reportDate)
+      .eq('report_category', reportCategory)
+      .maybeSingle();
+
+    if (existing?.id) {
+      // Update the editable context fields, keep everything else intact.
+      await (supabase as any)
+        .from('reports')
+        .update({
+          report_context_prompt: reportContext || null,
+          report_type: reportType,
+        })
+        .eq('id', existing.id);
+      return existing.id as string;
+    }
+
+    // No existing report → create a fresh one.
     const { data: report, error } = await (supabase as any)
       .from('reports')
       .insert([{
@@ -138,13 +161,40 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
       }])
       .select()
       .single();
-    
+
     if (error) throw error;
-    
+
     return report.id as string;
   };
 
   const saveMetrics = async (reportId: string, metrics: UnifiedMetrics) => {
+    // Deep-merge into any existing snapshot rather than overwriting the whole
+    // JSONB payload. This guarantees a re-upload (or a later API sync) never
+    // deletes previously-parsed ga4 / gsc / screaming_frog data.
+    const { data: existing } = await (supabase as any)
+      .from('metrics_snapshots')
+      .select('id, data_json')
+      .eq('report_id', reportId)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const existingMetrics = (existing.data_json ?? {}) as UnifiedMetrics;
+      const mergedMetrics: UnifiedMetrics = {
+        ...existingMetrics,
+        ...metrics,
+        data_sources: {
+          ...existingMetrics.data_sources,
+          ...metrics.data_sources,
+        },
+      };
+      const { error } = await (supabase as any)
+        .from('metrics_snapshots')
+        .update({ data_json: mergedMetrics })
+        .eq('id', existing.id);
+      if (error) throw error;
+      return;
+    }
+
     const { error } = await (supabase as any)
       .from('metrics_snapshots')
       .insert([{ report_id: reportId, metric_category: 'full_site_audit', data_json: metrics }]);
@@ -153,11 +203,24 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
 
   const createNarrativePlaceholders = async (reportId: string) => {
     const sections = ['executive', 'technical', 'traffic'];
-    for (const section of sections) {
-      await (supabase as any)
-        .from('narratives')
-        .insert([{ report_id: reportId, section, final_text: '' }]);
-    }
+
+    // A unique constraint (report + section) prevents duplicate narrative rows.
+    // Only insert sections that don't already exist so re-uploads don't throw.
+    const { data: existingRows } = await (supabase as any)
+      .from('narratives')
+      .select('section')
+      .eq('report_id', reportId);
+
+    const existingSections = new Set(
+      (existingRows ?? []).map((r: { section: string }) => r.section)
+    );
+
+    const missing = sections.filter((s) => !existingSections.has(s));
+    if (missing.length === 0) return;
+
+    await (supabase as any)
+      .from('narratives')
+      .insert(missing.map((section) => ({ report_id: reportId, section, final_text: '' })));
   };
 
   const handleAutoSync = async () => {

@@ -11,18 +11,63 @@ const MAX_DRILL_DOWN = 50;
 
 type CsvRow = Record<string, string>;
 
-function parseFile(file: File): Promise<CsvRow[]> {
+function parseString(csv: string): Promise<CsvRow[]> {
   return new Promise((resolve, reject) => {
-    Papa.parse<CsvRow>(file, {
+    Papa.parse<CsvRow>(csv, {
       header: true,
       skipEmptyLines: true,
       // Trim BOM/whitespace from headers so column matching is reliable across
       // GA4/GSC export variants and locales.
       transformHeader: (h) => h.replace(/^\uFEFF/, '').trim(),
       complete: (results) => resolve(results.data),
-      error: (err) => reject(err),
+      error: (err: unknown) => reject(err),
     });
   });
+}
+
+/**
+ * Standard GA4/GSC CSV exports prepend up to ~9 rows of metadata before the
+ * real header row (e.g. "# ----------------------------------------",
+ * "# Account: Brew Digital", blank lines, etc.). PapaParse reads the first
+ * line as the header and then fails to find the real columns — producing
+ * all-zero metrics.
+ *
+ * This helper splits the raw text by newlines, finds the index of the actual
+ * header row by looking for known GA4/GSC column markers, and slices off every
+ * metadata row above it. If no marker is found the original text is returned
+ * unchanged (so well-formed exports still parse).
+ */
+function stripCsvMetadata(raw: string): string {
+  // Markers that uniquely identify a real GA4/GSC header row.
+  const headerMarkers = [
+    'active users',
+    'sessions',
+    'top queries',
+    'session default channel group',
+    'session primary channel group',
+    'query',
+    'clicks',
+    'impressions',
+  ];
+
+  const lines = raw.split(/\r\n|\r|\n/);
+  const headerIndex = lines.findIndex((line) => {
+    const lower = line.toLowerCase();
+    return headerMarkers.some((marker) => lower.includes(marker));
+  });
+
+  if (headerIndex <= 0) {
+    // -1 = no marker found (leave untouched); 0 = header already first row.
+    return raw;
+  }
+
+  return lines.slice(headerIndex).join('\n');
+}
+
+/** Read a File as text, then strip GA4/GSC metadata rows above the header. */
+async function readCleanCsv(file: File): Promise<string> {
+  const raw = await file.text();
+  return stripCsvMetadata(raw);
 }
 
 /**
@@ -42,6 +87,69 @@ function pick(row: CsvRow, candidates: string[]): string | undefined {
   return undefined;
 }
 
+/**
+ * Build a normalized key map for a Screaming Frog row: lowercased + single-spaced
+ * keys → original value. Lets us alias columns despite capitalisation/spacing
+ * variances (e.g. "Status Code" vs "HTTP Status", "Inlinks" vs "Unique Inlinks").
+ */
+function normalizeRow(row: CsvRow): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of Object.keys(row)) {
+    const norm = key.replace(/^\uFEFF/, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    out[norm] = row[key];
+  }
+  return out;
+}
+
+/** Alias lookup against a normalized row — returns first matching candidate. */
+function aliasGet(norm: Record<string, string>, candidates: string[]): string | undefined {
+  for (const cand of candidates) {
+    const key = cand.toLowerCase().replace(/\s+/g, ' ').trim();
+    const v = norm[key];
+    if (v !== undefined && v !== null) return v;
+  }
+  return undefined;
+}
+
+/**
+ * GSC MoM exports prefix metric headers with the date range, e.g.
+ * "01/05/2026 - 31/05/2026 Clicks". Build a map from the actual headers to the
+ * canonical GscQuery keys using STRICT suffix matching (endsWith ' Clicks',
+ * etc.) plus exact-equality for plain headers. We deliberately avoid
+ * includes('Clicks') so a query containing the word "clicks" never matches.
+ * First matched header for each metric wins.
+ */
+type GscHeaderMap = {
+  query?: string;
+  clicks?: string;
+  impressions?: string;
+  ctr?: string;
+  position?: string;
+};
+
+function buildGscHeaderMap(headers: string[]): GscHeaderMap {
+  const map: GscHeaderMap = {};
+  const cleaned = headers.map((h) => h.replace(/^\uFEFF/, '').trim());
+
+  const matchSuffix = (h: string, metric: string) => {
+    const lower = h.toLowerCase();
+    return lower === metric.toLowerCase() || lower.endsWith(` ${metric.toLowerCase()}`);
+  };
+
+  for (const h of cleaned) {
+    const lower = h.toLowerCase();
+    // Query/keyword column (exact or known synonyms).
+    if (map.query === undefined && (lower === 'top queries' || lower === 'query' || lower === 'queries' || lower === 'search query')) {
+      map.query = h;
+    }
+    if (map.clicks === undefined && matchSuffix(h, 'Clicks')) map.clicks = h;
+    if (map.impressions === undefined && matchSuffix(h, 'Impressions')) map.impressions = h;
+    if (map.ctr === undefined && matchSuffix(h, 'CTR')) map.ctr = h;
+    if (map.position === undefined && matchSuffix(h, 'Position')) map.position = h;
+  }
+  return map;
+}
+
 /** Parse a numeric cell that may contain commas, currency, %, or spaces. */
 function num(value: string | undefined): number {
   if (value === undefined) return 0;
@@ -50,13 +158,15 @@ function num(value: string | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function rowToUrlEntry(row: CsvRow): UrlEntry {
+function rowToUrlEntry(norm: Record<string, string>): UrlEntry {
+  const statusRaw = aliasGet(norm, ['Status Code', 'HTTP Status', 'Status']);
+  const parsedStatus = statusRaw ? parseInt(statusRaw, 10) : NaN;
   return {
-    url: row['Address'] ?? row['URL'] ?? '',
-    status_code: row['Status Code'] ? parseInt(row['Status Code'], 10) : undefined,
-    title: row['Title 1'] ?? row['Title'] ?? undefined,
-    h1: row['H1-1'] ?? undefined,
-    indexability: row['Indexability'] ?? undefined,
+    url: aliasGet(norm, ['Address', 'URL', 'Page']) ?? '',
+    status_code: Number.isFinite(parsedStatus) ? parsedStatus : undefined,
+    title: aliasGet(norm, ['Title 1', 'Title']) ?? undefined,
+    h1: aliasGet(norm, ['H1-1', 'H1']) ?? undefined,
+    indexability: aliasGet(norm, ['Indexability', 'Indexable']) ?? undefined,
   };
 }
 
@@ -119,20 +229,29 @@ export function parseScreamingFrogCsv(file: File): Promise<Partial<UnifiedMetric
         const row = result.data;
         counts.total_urls++;
 
-        const entry = rowToUrlEntry(row);
-        const status = String(row['Status Code'] ?? '');
-        const isNonIndexable = row['Indexability'] === 'Non-Indexable';
-        const isIndexable = row['Indexability'] === 'Indexable';
-        const isMissingH1 = !row['H1-1'] || row['H1-1'].trim() === '';
+        // Normalize keys once so aliasing tolerates case/spacing variance.
+        const norm = normalizeRow(row);
+        const entry = rowToUrlEntry(norm);
+        const status = String(aliasGet(norm, ['Status Code', 'HTTP Status', 'Status']) ?? '');
+        const indexability = (aliasGet(norm, ['Indexability', 'Indexable']) ?? '').trim();
+        const isNonIndexable = indexability === 'Non-Indexable';
+        const isIndexable = indexability === 'Indexable';
+        const h1Val = aliasGet(norm, ['H1-1', 'H1']) ?? '';
+        const isMissingH1 = h1Val.trim() === '';
         const dir = extractDirectory(entry.url);
 
-        // Parse inlinks count
-        const inlinks = parseInt(row['Inlinks'] ?? '0', 10);
+        // Parse inlinks count (Inlinks or Unique Inlinks)
+        const inlinksRaw = aliasGet(norm, ['Inlinks', 'Unique Inlinks']) ?? '0';
+        const parsedInlinks = parseInt(inlinksRaw, 10);
+        const inlinks = Number.isFinite(parsedInlinks) ? parsedInlinks : 0;
         entry.inlinks_count = inlinks;
 
-        // Parse meta description
-        const metaDescLength = parseInt(row['Meta Description 1 Length'] ?? '0', 10);
-        const isMissingMetaDesc = metaDescLength === 0 || !row['Meta Description 1'];
+        // Parse meta description (length column aliased; fall back to presence of text)
+        const metaDescLenRaw = aliasGet(norm, ['Meta Description 1 Length', 'Description Length', 'Meta Description Length']) ?? '0';
+        const parsedMetaLen = parseInt(metaDescLenRaw, 10);
+        const metaDescLength = Number.isFinite(parsedMetaLen) ? parsedMetaLen : 0;
+        const metaDescText = aliasGet(norm, ['Meta Description 1', 'Meta Description', 'Description']) ?? '';
+        const isMissingMetaDesc = metaDescLength === 0 || metaDescText.trim() === '';
 
         if (isNonIndexable) {
           counts.non_indexable++;
@@ -193,7 +312,8 @@ export function parseScreamingFrogCsv(file: File): Promise<Partial<UnifiedMetric
  * Expected columns: "Session default channel group", "Sessions", "Active users"
  */
 export async function parseGa4Csv(file: File): Promise<Partial<UnifiedMetrics>> {
-  const rows = await parseFile(file);
+  const cleaned = await readCleanCsv(file);
+  const rows = await parseString(cleaned);
 
   // GA4 exports often have a summary row at the bottom — filter it out
   const dataRows = rows.filter((r) => {
@@ -243,23 +363,38 @@ export async function parseGa4Csv(file: File): Promise<Partial<UnifiedMetrics>> 
  * Expected columns: "Top queries", "Clicks", "Impressions", "CTR", "Position"
  */
 export async function parseGscCsv(file: File): Promise<Partial<UnifiedMetrics>> {
-  const rows = await parseFile(file);
+  const cleaned = await readCleanCsv(file);
+  const rows = await parseString(cleaned);
+
+  if (rows.length === 0) return { gsc_top_queries: [] };
+
+  // Resolve the real header names ONCE using strict suffix matching so MoM
+  // date-prefixed headers ("01/05/2026 - 31/05/2026 Clicks") map correctly and
+  // a query containing the word "clicks" can never be mistaken for the column.
+  const headers = Object.keys(rows[0]);
+  const hmap = buildGscHeaderMap(headers);
+
+  const getByHeader = (row: CsvRow, header: string | undefined): string | undefined =>
+    header ? row[header] : undefined;
 
   const queries: GscQuery[] = rows
-    .filter((r) => pick(r, ['Top queries', 'Query', 'Queries', 'Search query']))
+    .filter((r) => {
+      const q = getByHeader(r, hmap.query) ?? pick(r, ['Top queries', 'Query', 'Queries', 'Search query']);
+      return q !== undefined && String(q).trim() !== '';
+    })
     .slice(0, 20) // top 20 queries
     .map((row) => {
       // CTR may arrive as "12.3%" or a fraction "0.123". num() strips the %;
       // if the raw value already looked like a fraction (<= 1), keep it as-is.
-      const ctrRawStr = pick(row, ['CTR', 'Click-through rate', 'Click through rate']) ?? '0';
+      const ctrRawStr = getByHeader(row, hmap.ctr) ?? pick(row, ['CTR', 'Click-through rate', 'Click through rate']) ?? '0';
       const ctrNumber = num(ctrRawStr);
       const ctr = ctrRawStr.includes('%') || ctrNumber > 1 ? ctrNumber / 100 : ctrNumber;
       return {
-        query: pick(row, ['Top queries', 'Query', 'Queries', 'Search query']) ?? '',
-        clicks: num(pick(row, ['Clicks', 'Click', 'Total clicks'])),
-        impressions: num(pick(row, ['Impressions', 'Impression', 'Total impressions'])),
+        query: getByHeader(row, hmap.query) ?? pick(row, ['Top queries', 'Query', 'Queries', 'Search query']) ?? '',
+        clicks: num(getByHeader(row, hmap.clicks) ?? pick(row, ['Clicks', 'Click', 'Total clicks'])),
+        impressions: num(getByHeader(row, hmap.impressions) ?? pick(row, ['Impressions', 'Impression', 'Total impressions'])),
         ctr,
-        position: num(pick(row, ['Position', 'Average position', 'Avg. position', 'Avg position'])),
+        position: num(getByHeader(row, hmap.position) ?? pick(row, ['Position', 'Average position', 'Avg. position', 'Avg position'])),
       };
     });
 

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { SafeImage } from '@/components/ui/safe-image';
 import { formatReportTitle } from '@/lib/report-utils';
 import { ClientSettingsForm } from '@/components/admin/client-settings-form';
 import { ClientIntegrationsForm } from '@/components/admin/client-integrations-form';
@@ -105,13 +107,15 @@ export default function ClientHubPage() {
         .eq('id', reportToDelete.id);
       
       if (error) throw error;
-      
+
       setDeleteDialogOpen(false);
       setReportToDelete(null);
+      toast.success('Report deleted');
       await fetchData(); // Refresh the list
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error deleting report:', err);
-      alert('Failed to delete report. Please try again.');
+      toast.error(`Failed to delete report: ${msg}`);
     } finally {
       setDeleting(false);
     }
@@ -176,7 +180,11 @@ export default function ClientHubPage() {
             style={{ backgroundColor: clientColor }}
           >
             {client.logo_url ? (
-              <img src={client.logo_url} alt={client.company_name} className="h-10 w-10 rounded-full object-cover" />
+              <SafeImage
+                src={client.logo_url}
+                alt={client.company_name}
+                className="h-10 w-10 rounded-full object-cover"
+              />
             ) : (
               client.company_name.charAt(0)
             )}

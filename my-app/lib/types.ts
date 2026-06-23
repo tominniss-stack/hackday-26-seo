@@ -32,6 +32,7 @@ export interface Database {
           seranking_api_key: string | null
           seranking_domain: string | null
           seranking_project_id: string | null
+          seranking_endpoint_url: string | null
           created_at: string
         }
         Insert: {
@@ -55,6 +56,7 @@ export interface Database {
           seranking_api_key?: string | null
           seranking_domain?: string | null
           seranking_project_id?: string | null
+          seranking_endpoint_url?: string | null
           created_at?: string
         }
         Update: {
@@ -78,6 +80,7 @@ export interface Database {
           seranking_api_key?: string | null
           seranking_domain?: string | null
           seranking_project_id?: string | null
+          seranking_endpoint_url?: string | null
           created_at?: string
         }
       }
@@ -145,6 +148,7 @@ export interface Database {
           report_type: 'monthly' | 'quarterly'
           visible_widgets: Record<string, boolean> | null
           raw_sf_file_url: string | null
+          manual_priorities: Json | null
           created_at: string
         }
         Insert: {
@@ -158,6 +162,7 @@ export interface Database {
           report_type?: 'monthly' | 'quarterly'
           visible_widgets?: Record<string, boolean> | null
           raw_sf_file_url?: string | null
+          manual_priorities?: Json | null
           created_at?: string
         }
         Update: {
@@ -171,6 +176,7 @@ export interface Database {
           report_type?: 'monthly' | 'quarterly'
           visible_widgets?: Record<string, boolean> | null
           raw_sf_file_url?: string | null
+          manual_priorities?: Json | null
           created_at?: string
         }
       }

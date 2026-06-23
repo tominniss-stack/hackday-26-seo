@@ -33,21 +33,17 @@ export function ReportEditorOffsiteMetrics({ metrics }: ReportEditorOffsiteMetri
     },
   ];
 
-  const source = metrics.data_sources?.seranking;
-  const hasData = metrics.seranking_total_backlinks !== undefined;
-  const isMock = source === 'mock';
+  const hasData =
+    metrics.seranking_total_backlinks !== undefined &&
+    metrics.seranking_total_backlinks !== null;
 
-  const headerStatus = !hasData
-    ? 'Integration pending'
-    : isMock
-      ? 'Sample data (live API unavailable)'
-      : 'Live data synced';
+  const headerStatus = hasData ? 'Live data synced' : 'Data unavailable';
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">Authority & Off-Site (SE Ranking)</CardTitle>
-        <p className={`text-xs mt-1 ${isMock ? 'text-amber-500' : hasData ? 'text-emerald-600' : 'text-slate-400'}`}>
+        <p className={`text-xs mt-1 ${hasData ? 'text-emerald-600' : 'text-slate-400'}`}>
           {headerStatus}
         </p>
       </CardHeader>
@@ -68,13 +64,11 @@ export function ReportEditorOffsiteMetrics({ metrics }: ReportEditorOffsiteMetri
             );
           })}
         </div>
-        <div className={`mt-4 p-3 rounded-lg border ${isMock ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
-          <p className={`text-xs text-center ${isMock ? 'text-amber-700' : 'text-slate-600'}`}>
-            {!hasData
-              ? 'SE Ranking integration pending. Click "Sync Live Data" to fetch metrics.'
-              : isMock
-                ? 'Live SE Ranking API call failed — showing sample fallback figures. Check the API key / domain and re-sync.'
-                : 'Live data synced from the SE Ranking API.'}
+        <div className="mt-4 p-3 rounded-lg border bg-slate-50 border-slate-200">
+          <p className="text-xs text-center text-slate-600">
+            {hasData
+              ? 'Live data synced from the SE Ranking API.'
+              : 'SE Ranking data unavailable. Configure the endpoint URL or project ID, then click "Sync Live Data". No fallback figures are shown.'}
           </p>
         </div>
       </CardContent>
