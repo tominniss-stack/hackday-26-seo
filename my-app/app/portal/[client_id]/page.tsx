@@ -9,10 +9,14 @@ import { DashboardView } from '@/components/portal/dashboard-view';
 import { DocumentsView } from '@/components/portal/documents-view';
 import { RequestsView } from '@/components/portal/requests-view';
 import { SettingsView } from '@/components/portal/settings-view';
+import { SEOView } from '@/components/portal/seo-view';
+import { PPCView } from '@/components/portal/ppc-view';
 import { ContextualSupportFAB } from '@/components/portal/contextual-support-fab';
 import { generateThemePalette, getThemeStyles } from '@/lib/theme-engine';
 import type { PortalTab } from '@/lib/portal-nav';
-import { ShieldX } from 'lucide-react';
+import type { UnifiedMetrics, PpcCampaign } from '@/lib/metrics-schema';
+import type { ManualPriority } from '@/lib/priority-calculator';
+import { ShieldX, BarChart3, Target, ArrowUpRight } from 'lucide-react';
 
 interface ClientData {
   id: string;
@@ -33,6 +37,14 @@ interface RecentReport {
   created_at: string;
 }
 
+interface CategoryReport {
+  id: string;
+  reporting_month: string;
+  report_type?: 'monthly' | 'quarterly';
+  metrics: Array<{ data_json: UnifiedMetrics }>;
+  narrative: Array<{ section: string; final_text: string }>;
+}
+
 function PortalContent() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -42,6 +54,8 @@ function PortalContent() {
 
   const [client, setClient] = useState<ClientData | null>(null);
   const [recentReports, setRecentReports] = useState<RecentReport[]>([]);
+  const [seoReport, setSeoReport] = useState<CategoryReport | null>(null);
+  const [ppcReport, setPpcReport] = useState<CategoryReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -81,6 +95,29 @@ function PortalContent() {
         } else if (reportRows) {
           setRecentReports(reportRows as unknown as RecentReport[]);
         }
+
+        // Fetch the most-recent PUBLISHED report per category (SEO + PPC), with
+        // its metrics + narrative, to power the sidebar SEO/PPC tabs.
+        const fetchLatestByCategory = async (
+          category: 'SEO' | 'PPC'
+        ): Promise<CategoryReport | null> => {
+          const { data: rows } = await supabase
+            .from('reports')
+            .select('id, reporting_month, report_type, metrics:metrics_snapshots(data_json), narrative:narratives(section, final_text)')
+            .eq('client_id', clientId)
+            .eq('report_category', category)
+            .eq('published_status', 'published')
+            .order('reporting_month', { ascending: false })
+            .limit(1);
+          return (rows?.[0] as unknown as CategoryReport) ?? null;
+        };
+
+        const [seo, ppc] = await Promise.all([
+          fetchLatestByCategory('SEO'),
+          fetchLatestByCategory('PPC'),
+        ]);
+        setSeoReport(seo);
+        setPpcReport(ppc);
       } catch (error) {
         console.error('Error fetching client:', error);
         setUnauthorized(true);
@@ -128,6 +165,17 @@ function PortalContent() {
   );
   const themeStyles = getThemeStyles(themePalette);
 
+  // Compute the latest SEO technical-health score (same formula as the report
+  // view) so the dashboard can show it alongside the DORA score.
+  const seoMetrics = (seoReport?.metrics?.[0]?.data_json ?? {}) as Record<string, number | undefined>;
+  const seoTotalUrls = seoMetrics.total_urls ?? 0;
+  const seoHealthScore =
+    seoReport && seoTotalUrls > 0
+      ? Math.max(0, 100 - (((seoMetrics.client_errors_4xx ?? 0) + (seoMetrics.server_errors_5xx ?? 0)) / seoTotalUrls) * 100)
+      : seoReport
+        ? 100
+        : null;
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -139,8 +187,57 @@ function PortalContent() {
             contactName={client.contact_name ?? undefined}
             accessKey={accessKey}
             recentReports={recentReports}
+            seoHealthScore={seoHealthScore}
+            seoHealthMonth={seoReport?.reporting_month ?? null}
           />
         );
+      case 'seo': {
+        if (!seoReport) {
+          return (
+            <ServiceUpsell
+              clientColor={clientColor}
+              Icon={BarChart3}
+              title="No SEO reports published yet"
+              body="Your search performance dashboard will appear here as soon as your first SEO report is published. Want to climb the rankings sooner? Our SEO specialists can audit your site, uncover quick wins, and build a roadmap for sustainable organic growth."
+              ctaLabel="Explore our SEO services"
+              ctaHref="https://brewdigital.com/services/digital-marketing/search-engine-optimisation"
+            />
+          );
+        }
+        return (
+          <SEOView
+            metrics={(seoReport.metrics?.[0]?.data_json ?? {}) as Record<string, unknown>}
+            narrativeText={seoReport.narrative?.find((n) => n.section === 'executive')?.final_text ?? ''}
+            trafficNarrative={seoReport.narrative?.find((n) => n.section === 'traffic')?.final_text ?? ''}
+            technicalNarrative={seoReport.narrative?.find((n) => n.section === 'technical')?.final_text ?? ''}
+            clientColor={clientColor}
+            reportingMonth={seoReport.reporting_month}
+            reportType={seoReport.report_type}
+            manualPriorities={(seoReport.metrics?.[0]?.data_json as { manual_priorities?: ManualPriority[] } | undefined)?.manual_priorities ?? null}
+          />
+        );
+      }
+      case 'ppc': {
+        if (!ppcReport) {
+          return (
+            <ServiceUpsell
+              clientColor={clientColor}
+              Icon={Target}
+              title="No paid media reports published yet"
+              body="There are currently no PPC reports for your account. If you're looking to drive qualified traffic and conversions through paid search and paid social, our performance marketing team would love to help you make every click count."
+              ctaLabel="Discover our PPC & Paid Social services"
+              ctaHref="https://brewdigital.com/services/digital-marketing/pay-per-click-ppc-and-paid-social-advertising"
+            />
+          );
+        }
+        return (
+          <PPCView
+            clientColor={clientColor}
+            reportingMonth={ppcReport.reporting_month}
+            campaigns={(ppcReport.metrics?.[0]?.data_json as { ppc_campaigns?: PpcCampaign[] } | undefined)?.ppc_campaigns}
+          />
+        );
+      }
       case 'documents':
         return <DocumentsView clientColor={clientColor} />;
       case 'requests':
@@ -156,13 +253,15 @@ function PortalContent() {
             contactName={client.contact_name ?? undefined}
             accessKey={accessKey}
             recentReports={recentReports}
+            seoHealthScore={seoHealthScore}
+            seoHealthMonth={seoReport?.reporting_month ?? null}
           />
         );
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col" style={themeStyles}>
+    <div className="h-screen overflow-hidden bg-slate-50 flex flex-col" style={themeStyles}>
       <PortalHeader
         companyName={client.company_name}
         logoUrl={client.logo_url}
@@ -193,6 +292,53 @@ function PortalContent() {
         clientId={client.id}
         activeTab={activeTab}
       />
+    </div>
+  );
+}
+
+/**
+ * On-brand "service upsell" empty state shown when a client has no published
+ * report for a given category (SEO/PPC). Uses the client's brand colour for
+ * accents and links to the relevant Brew Digital service page.
+ */
+function ServiceUpsell({
+  clientColor,
+  Icon,
+  title,
+  body,
+  ctaLabel,
+  ctaHref,
+}: {
+  clientColor: string;
+  Icon: React.ElementType;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  ctaHref: string;
+}) {
+  return (
+    <div className="max-w-xl mx-auto py-16 text-center">
+      <div
+        className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: `${clientColor}14`, color: clientColor }}
+      >
+        <Icon className="h-7 w-7" />
+      </div>
+      <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-slate-500">{body}</p>
+      <a
+        href={ctaHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+        style={{ backgroundColor: clientColor }}
+      >
+        {ctaLabel}
+        <ArrowUpRight className="h-4 w-4" />
+      </a>
+      <p className="mt-4 text-xs text-slate-400">
+        Or reach out to your account manager — we&apos;re always happy to help.
+      </p>
     </div>
   );
 }

@@ -122,7 +122,7 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
     setMode('auto');
   };
 
-  const createReportRecord = async (): Promise<string> => {
+  const createReportRecord = async (): Promise<{ reportId: string; existed: boolean }> => {
     const reportDate = `${reportingMonth}-01`;
 
     // Find-or-reuse: a unique constraint (client + month + category) prevents
@@ -145,7 +145,7 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
           report_type: reportType,
         })
         .eq('id', existing.id);
-      return existing.id as string;
+      return { reportId: existing.id as string, existed: true };
     }
 
     // No existing report → create a fresh one.
@@ -164,7 +164,7 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
 
     if (error) throw error;
 
-    return report.id as string;
+    return { reportId: report.id as string, existed: false };
   };
 
   const saveMetrics = async (reportId: string, metrics: UnifiedMetrics) => {
@@ -228,7 +228,7 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
     setLoading(true);
     try {
       setProgress('Creating report record...');
-      const reportId = await createReportRecord();
+      const { reportId } = await createReportRecord();
 
       setProgress('Syncing data from Google APIs...');
       const res = await fetch('/api/sync/report-data', {
@@ -263,52 +263,74 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
   };
 
   const handleManualUpload = async () => {
-    if (!reportingMonth || !files.sf) {
-      alert('Reporting month and Screaming Frog CSV are required.');
+    if (!reportingMonth) {
+      alert('Please select a reporting month.');
+      return;
+    }
+    // At least one CSV must be provided. On a brand-new report the Screaming
+    // Frog file is required; on a RE-UPLOAD (existing report) any single source
+    // (SF, GA4, or GSC) can be uploaded on its own to overwrite just that data.
+    if (!files.sf && !files.ga4 && !files.gsc) {
+      alert('Please add at least one CSV file to upload.');
       return;
     }
     setLoading(true);
     try {
+      setProgress('Creating report record...');
+      const { reportId, existed } = await createReportRecord();
+
+      if (!existed && !files.sf) {
+        alert('A Screaming Frog CSV is required when creating a new report.');
+        setLoading(false);
+        setProgress('');
+        return;
+      }
+
       setProgress('Parsing CSV files...');
+      // Only parse + overwrite the sources actually provided. Each parser writes
+      // its own keys; unprovided sources are left untouched in the snapshot.
       const parts: Partial<UnifiedMetrics>[] = [];
+      const sources: Record<string, 'csv'> = {};
 
-      const sfData = await parseScreamingFrogCsv(files.sf!);
-      parts.push({ ...sfData, data_sources: { screaming_frog: 'csv', ga4: files.ga4 ? 'csv' : 'skipped', gsc: files.gsc ? 'csv' : 'skipped' } });
-
+      if (files.sf) {
+        const sfData = await parseScreamingFrogCsv(files.sf);
+        parts.push(sfData);
+        sources.screaming_frog = 'csv';
+      }
       if (files.ga4) {
         setProgress('Parsing GA4 CSV...');
         parts.push(await parseGa4Csv(files.ga4));
+        sources.ga4 = 'csv';
       }
       if (files.gsc) {
         setProgress('Parsing GSC CSV...');
         parts.push(await parseGscCsv(files.gsc));
+        sources.gsc = 'csv';
       }
 
       const metrics = mergeMetrics(...parts);
+      metrics.data_sources = sources as UnifiedMetrics['data_sources'];
 
-      setProgress('Creating report record...');
-      const reportId = await createReportRecord();
+      // Upload raw SF CSV to Storage (only when an SF file was provided).
+      if (files.sf) {
+        setProgress('Uploading raw CSV to storage...');
+        const storagePath = `${clientId}/${reportId}/screaming_frog.csv`;
+        const { error: uploadError } = await supabase.storage
+          .from('client_reports_data')
+          .upload(storagePath, files.sf, { contentType: 'text/csv', upsert: true });
 
-      // Upload raw SF CSV to Storage bucket for infinite drill-down
-      setProgress('Uploading raw CSV to storage...');
-      const storagePath = `${clientId}/${reportId}/screaming_frog.csv`;
-      const { error: uploadError } = await supabase.storage
-        .from('client_reports_data')
-        .upload(storagePath, files.sf!, { contentType: 'text/csv', upsert: true });
-
-      if (!uploadError) {
-        // Save storage path reference to report
-        await (supabase as any)
-          .from('reports')
-          .update({ raw_sf_file_url: storagePath })
-          .eq('id', reportId);
-        // Also embed path in metrics for drill-down access
-        metrics.raw_sf_storage_path = storagePath;
-      } else {
-        console.warn('Storage upload failed (non-critical):', uploadError.message);
+        if (!uploadError) {
+          await (supabase as any)
+            .from('reports')
+            .update({ raw_sf_file_url: storagePath })
+            .eq('id', reportId);
+          metrics.raw_sf_storage_path = storagePath;
+        } else {
+          console.warn('Storage upload failed (non-critical):', uploadError.message);
+        }
       }
 
-      setProgress('Saving metrics...');
+      setProgress(existed ? 'Updating metrics...' : 'Saving metrics...');
       await saveMetrics(reportId, metrics);
 
       setProgress('Creating narrative placeholders...');
@@ -478,10 +500,14 @@ export function ReportUpload({ clientId, onReportCreated }: ReportUploadProps) {
             </Button>
             <Button
               onClick={mode === 'auto' ? handleAutoSync : handleManualUpload}
-              disabled={loading || !reportingMonth || (mode === 'manual' && !files.sf)}
+              disabled={
+                loading ||
+                !reportingMonth ||
+                (mode === 'manual' && !files.sf && !files.ga4 && !files.gsc)
+              }
             >
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              {mode === 'auto' ? 'Sync Data' : 'Upload & Create'}
+              {mode === 'auto' ? 'Sync Data' : 'Upload & Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -13,7 +13,9 @@ import {
   AlertCircle,
   ExternalLink,
   TrendingUp,
-  FileText
+  FileText,
+  Gauge,
+  ShieldCheck
 } from 'lucide-react';
 import { formatReportTitle } from '@/lib/report-utils';
 
@@ -53,6 +55,10 @@ interface DashboardViewProps {
   recentReports?: RecentReport[];
   notifications?: DashboardNotification[];
   activeTickets?: DashboardTicket[];
+  /** Latest SEO technical-health score (0–100) + the month it was measured,
+   *  shown alongside the DORA score. Null when no SEO report exists yet. */
+  seoHealthScore?: number | null;
+  seoHealthMonth?: string | null;
 }
 
 export function DashboardView({
@@ -64,6 +70,8 @@ export function DashboardView({
   recentReports = [],
   notifications = [],
   activeTickets = [],
+  seoHealthScore = null,
+  seoHealthMonth = null,
 }: DashboardViewProps) {
   const router = useRouter();
 
@@ -382,6 +390,154 @@ export function DashboardView({
               </Button>
             </div>
           </CardContent>
+        </Card>
+      </div>
+
+      {/* Maturity row: Digital Maturity (DORA) + SEO Technical Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Digital Maturity (DORA) — 2/3 */}
+        <Card className="border-l-4 lg:col-span-2" style={{ borderLeftColor: clientColor }}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Gauge className="h-4 w-4" style={{ color: clientColor }} />
+                  Digital Maturity (DORA)
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-1">
+                  Your Digital Readiness Assessment monitors the maturity of your infrastructure and operations.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                Last Assessed: 12 Jun 2026
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold tracking-tight tabular-nums text-slate-900">68</span>
+                <span className="text-sm text-slate-400">/ 100</span>
+              </div>
+              <div className="flex-1 max-w-xs">
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: '68%', backgroundColor: clientColor }} />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1.5">
+                  Healthy — above the industry benchmark of 60.
+                </p>
+              </div>
+              <Button size="sm" style={{ backgroundColor: clientColor }} className="text-white shrink-0">
+                Retake Assessment
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SEO Technical Health — 1/3, mirrors the latest report's score */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ShieldCheck
+                className="h-4 w-4"
+                style={{
+                  color:
+                    seoHealthScore == null ? '#94a3b8'
+                      : seoHealthScore >= 90 ? '#059669'
+                      : seoHealthScore >= 70 ? '#b45309'
+                      : '#dc2626',
+                }}
+              />
+              SEO Technical Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {seoHealthScore == null ? (
+              <p className="text-sm text-slate-400">No SEO report published yet.</p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-baseline gap-1.5">
+                  <span
+                    className="text-4xl font-bold tracking-tight tabular-nums"
+                    style={{
+                      color:
+                        seoHealthScore >= 90 ? '#059669'
+                          : seoHealthScore >= 70 ? '#b45309'
+                          : '#dc2626',
+                    }}
+                  >
+                    {Math.round(seoHealthScore)}%
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Correct as of {seoHealthMonth ? new Date(seoHealthMonth).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'the latest report'}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* More from Brew — content ecosystem */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Latest from the Resource Hub */}
+        <Card className="overflow-hidden group">
+          <a
+            href="https://brewdigital.com/resource-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <div className="h-40 w-full overflow-hidden bg-slate-100">
+              <img
+                src="/marketing/seo-health.jpg"
+                alt="Running an SEO health check"
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+            <CardContent className="pt-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: clientColor }}>
+                Latest from the Resource Hub
+              </p>
+              <h3 className="text-sm font-semibold text-slate-900 mt-1 leading-snug">
+                Your Site&apos;s Annual Check-up: A Practical SEO Health Check Guide
+              </h3>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                Spot crawl issues, indexation gaps and technical errors before they cost you rankings.
+              </p>
+            </CardContent>
+          </a>
+        </Card>
+
+        {/* Latest Podcast Episode */}
+        <Card className="overflow-hidden group">
+          <a
+            href="https://brewdigital.com/podcast"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <div className="h-40 w-full overflow-hidden bg-slate-900">
+              <img
+                src="/marketing/motu-podcast.jpg"
+                alt="Marketers of the Universe — a Brew Digital podcast"
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+            <CardContent className="pt-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: clientColor }}>
+                Latest Podcast Episode
+              </p>
+              <h3 className="text-sm font-semibold text-slate-900 mt-1 leading-snug">
+                Marketers of the Universe — Decoding Digital Maturity
+              </h3>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                Our team unpacks how the best brands turn operational readiness into marketing advantage.
+              </p>
+            </CardContent>
+          </a>
         </Card>
       </div>
     </div>

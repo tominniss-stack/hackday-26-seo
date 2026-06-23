@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +19,37 @@ interface SettingsViewProps {
 
 export function SettingsView({ clientColor, clientId }: SettingsViewProps) {
   // My Profile State
+  const [userId, setUserId] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
-    name: 'John Doe',
-    email: 'john@example.com',
+    name: '',
+    email: '',
     avatarUrl: '',
   });
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Load the primary client_users profile for this client so the avatar/name
+  // persist and round-trip. (Pre-auth: we use the first user row for the client.)
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProfile() {
+      const { data } = await supabase
+        .from('client_users')
+        .select('id, name, email, avatar_url')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as { id: string; name: string; email: string; avatar_url: string | null } | null;
+      if (row) {
+        setUserId(row.id);
+        setProfileForm({ name: row.name ?? '', email: row.email ?? '', avatarUrl: row.avatar_url ?? '' });
+      }
+    }
+    loadProfile();
+    return () => { cancelled = true; };
+  }, [clientId]);
 
   // Team Members (mock data)
   const [teamMembers] = useState([
@@ -38,21 +64,27 @@ export function SettingsView({ clientColor, clientId }: SettingsViewProps) {
     setUploadingAvatar(true);
 
     try {
-      // TODO: Get actual user ID from session
-      const userId = 'temp-user-id';
-      const result = await uploadUserAvatar(userId, file);
-      
+      const result = await uploadUserAvatar(userId ?? clientId, file);
+
       if (!result) throw new Error('Upload failed');
 
       setProfileForm(prev => ({ ...prev, avatarUrl: result.url }));
-      alert('Avatar uploaded successfully!');
+
+      // Persist immediately so the avatar survives a refresh.
+      if (userId) {
+        await (supabase as any)
+          .from('client_users')
+          .update({ avatar_url: result.url })
+          .eq('id', userId);
+      }
+      toast.success('Avatar uploaded');
     } catch (err) {
       console.error('Error uploading avatar:', err);
-      alert('Failed to upload avatar. Please try again.');
+      toast.error('Failed to upload avatar. Please try again.');
     } finally {
       setUploadingAvatar(false);
     }
-  }, []);
+  }, [userId, clientId]);
 
   const { getRootProps: getAvatarRootProps, getInputProps: getAvatarInputProps, isDragActive: isAvatarDragActive } = useDropzone({
     onDrop: onDropAvatar,
@@ -68,11 +100,19 @@ export function SettingsView({ clientColor, clientId }: SettingsViewProps) {
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      // TODO: Save to client_users table
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('Profile updated successfully!');
+      if (!userId) {
+        toast.error('No profile found to update for this client.');
+        return;
+      }
+      const { error } = await (supabase as any)
+        .from('client_users')
+        .update({ name: profileForm.name, avatar_url: profileForm.avatarUrl || null })
+        .eq('id', userId);
+      if (error) throw error;
+      toast.success('Profile updated');
     } catch (err) {
-      alert('Failed to save profile. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(`Failed to save profile: ${msg}`);
     } finally {
       setSavingProfile(false);
     }

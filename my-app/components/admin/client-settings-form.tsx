@@ -304,25 +304,39 @@ export function ClientSettingsForm({ client, onSaved }: ClientSettingsFormProps)
               <Label htmlFor="secondary_color" className="text-[11px] text-slate-500">
                 Secondary Color
               </Label>
-              <Input
-                id="secondary_color"
-                value={form.theme_overrides.secondary || ''}
-                onChange={(e) => handleThemeOverride('secondary', e.target.value)}
-                placeholder="Auto-generated"
-                className="font-mono text-xs"
-              />
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="secondary_color"
+                  value={form.theme_overrides.secondary || ''}
+                  onChange={(e) => handleThemeOverride('secondary', e.target.value)}
+                  placeholder="Auto-generated"
+                  className="font-mono text-xs flex-1"
+                />
+                <div
+                  className="w-9 h-9 rounded-md border-2 border-slate-300 shadow-sm shrink-0 transition-colors"
+                  style={{ backgroundColor: form.theme_overrides.secondary || 'transparent' }}
+                  title={form.theme_overrides.secondary ? `Preview: ${form.theme_overrides.secondary}` : 'Auto-generated'}
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="accent_color" className="text-[11px] text-slate-500">
                 Accent Color
               </Label>
-              <Input
-                id="accent_color"
-                value={form.theme_overrides.accent || ''}
-                onChange={(e) => handleThemeOverride('accent', e.target.value)}
-                placeholder="Auto-generated"
-                className="font-mono text-xs"
-              />
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="accent_color"
+                  value={form.theme_overrides.accent || ''}
+                  onChange={(e) => handleThemeOverride('accent', e.target.value)}
+                  placeholder="Auto-generated"
+                  className="font-mono text-xs flex-1"
+                />
+                <div
+                  className="w-9 h-9 rounded-md border-2 border-slate-300 shadow-sm shrink-0 transition-colors"
+                  style={{ backgroundColor: form.theme_overrides.accent || 'transparent' }}
+                  title={form.theme_overrides.accent ? `Preview: ${form.theme_overrides.accent}` : 'Auto-generated'}
+                />
+              </div>
             </div>
           </div>
         </div>

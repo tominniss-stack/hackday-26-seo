@@ -123,32 +123,36 @@ export function PortalHeader({
             </SheetContent>
           </Sheet>
 
-          {/* Brew Digital branding - Always visible */}
-          <div className="flex items-center gap-2">
+          {/* Brew Digital branding — clickable, returns to the dashboard overview */}
+          <button
+            type="button"
+            onClick={() => navigateToTab('dashboard')}
+            className="flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 transition-opacity hover:opacity-80"
+            aria-label="Back to dashboard"
+            title="Back to dashboard"
+          >
             <img
               src="https://cdn.brewdigital.com/favicons/brewdigitalstacked_black.svg"
               alt="Brew Digital"
               className="h-7 w-auto"
             />
-          </div>
-          <Separator orientation="vertical" className="h-5 hidden sm:block" />
-          <span className="text-xs text-slate-400 tracking-wide uppercase hidden sm:block">
-            Client Portal
-          </span>
+            <Separator orientation="vertical" className="h-5 hidden sm:block" />
+            <span className="text-xs text-slate-400 tracking-wide uppercase hidden sm:block">
+              Client Portal
+            </span>
+          </button>
         </div>
 
-        {/* Right: Client branding + User Menu */}
+        {/* Right: Client branding (logo, never cropped) + Avatar dropdown */}
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-slate-700 hidden sm:block">
-            {companyName}
-          </span>
+          {/* Company logo — rounded-md + object-contain so brand text/wordmarks
+              are never cropped. Falls back to an initials tile on error. */}
           {resolvedLogoUrl ? (
             <img
               src={resolvedLogoUrl}
               alt={companyName}
-              className="h-8 w-8 rounded-full object-cover ring-1 ring-slate-100"
+              className="h-8 max-w-[120px] rounded-md object-contain"
               onError={(e) => {
-                // Hide broken image, reveal initials fallback sibling
                 const img = e.currentTarget;
                 img.style.display = 'none';
                 const fallback = img.nextElementSibling as HTMLElement | null;
@@ -158,29 +162,35 @@ export function PortalHeader({
           ) : null}
           {resolvedLogoUrl ? (
             <div
-              className="h-8 w-8 rounded-full items-center justify-center text-white text-sm font-bold ring-1 ring-white/20"
+              className="h-8 w-8 rounded-md items-center justify-center text-white text-sm font-bold"
               style={{ backgroundColor: clientColor, display: 'none' }}
             >
               {companyName.charAt(0)}
             </div>
           ) : (
-            <div
-              className="h-8 w-8 rounded-full flex items-center justify-center text-white text-sm font-bold ring-1 ring-white/20"
-              style={{ backgroundColor: clientColor }}
-            >
-              {companyName.charAt(0)}
-            </div>
+            <span className="text-sm font-medium text-slate-700 hidden sm:block">
+              {companyName}
+            </span>
           )}
-          
+
           <Separator orientation="vertical" className="h-5" />
-          
-          {/* User Dropdown Menu */}
+
+          {/* User avatar dropdown — the round avatar IS the trigger. Houses
+              Profile, Settings and Manage Team (moved out of the sidebar). */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1">
-                <User className="h-4 w-4" />
-                <ChevronDown className="h-3 w-3" />
-              </Button>
+              <button
+                className="flex items-center gap-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                aria-label="Account menu"
+              >
+                <span
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-white text-sm font-bold ring-1 ring-white/20"
+                  style={{ backgroundColor: clientColor }}
+                >
+                  {companyName.charAt(0)}
+                </span>
+                <ChevronDown className="h-3 w-3 text-slate-400" />
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => navigateToTab('settings')}>
@@ -188,8 +198,12 @@ export function PortalHeader({
                 My Profile
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigateToTab('settings')}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigateToTab('settings')}>
                 <Users className="h-4 w-4 mr-2" />
-                Team
+                Manage Team
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>

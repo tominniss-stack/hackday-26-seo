@@ -140,7 +140,12 @@ function PortalContent() {
   const themeStyles = getThemeStyles(themePalette);
   
   const metrics = report.metrics?.[0]?.data_json || {};
-  const narrativeText = report.narrative?.[0]?.final_text || '';
+  const findNarrative = (section: string): string =>
+    (report.narrative as Array<{ section?: string; final_text: string }> | undefined)
+      ?.find((n) => n.section === section)?.final_text || '';
+  const narrativeText = findNarrative('executive') || report.narrative?.[0]?.final_text || '';
+  const trafficNarrative = findNarrative('traffic');
+  const technicalNarrative = findNarrative('technical');
   const reportType = (report as any).report_type ?? 'monthly';
   const visibleWidgets = (report as any).visible_widgets ?? undefined;
 
@@ -150,7 +155,7 @@ function PortalContent() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col" style={themeStyles}>
+    <div className="h-screen overflow-hidden bg-slate-50 flex flex-col" style={themeStyles}>
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="px-4 md:px-8 py-4">
@@ -221,6 +226,8 @@ function PortalContent() {
               <SEOView
                 metrics={metrics}
                 narrativeText={narrativeText}
+                trafficNarrative={trafficNarrative}
+                technicalNarrative={technicalNarrative}
                 clientColor={clientColor}
                 reportingMonth={report.reporting_month}
                 visibleWidgets={visibleWidgets}

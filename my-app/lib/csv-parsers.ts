@@ -38,16 +38,16 @@ function parseString(csv: string): Promise<CsvRow[]> {
  * unchanged (so well-formed exports still parse).
  */
 function stripCsvMetadata(raw: string): string {
-  // Markers that uniquely identify a real GA4/GSC header row.
+  // GA4/GSC exports prepend up to ~9 metadata rows before the real header.
+  // We identify the header row by the exact, stable GA4/GSC column names it
+  // must contain. These markers are matched case-insensitively but as exact
+  // substrings of a header cell — not fuzzy — to avoid false positives.
   const headerMarkers = [
-    'active users',
-    'sessions',
-    'top queries',
-    'session default channel group',
-    'session primary channel group',
-    'query',
-    'clicks',
-    'impressions',
+    'session default channel group', // GA4 Traffic acquisition
+    'session primary channel group', // GA4 (newer variant)
+    'page path',                     // GA4 Pages report
+    'top queries',                   // GSC Queries
+    'query',                         // GSC (variant)
   ];
 
   const lines = raw.split(/\r\n|\r|\n/);
@@ -56,11 +56,20 @@ function stripCsvMetadata(raw: string): string {
     return headerMarkers.some((marker) => lower.includes(marker));
   });
 
-  if (headerIndex <= 0) {
-    // -1 = no marker found (leave untouched); 0 = header already first row.
+  if (headerIndex < 0) {
+    // No recognised header marker found — log the first few rows so we can
+    // debug why detection failed, then leave the text untouched.
+    console.warn(
+      '[CSV] stripCsvMetadata: no header marker found. First 3 rows:',
+      lines.slice(0, 3)
+    );
     return raw;
   }
 
+  // Log the extracted header row so a failed parse is debuggable in the terminal.
+  console.log(`[CSV] stripCsvMetadata: header row detected at line ${headerIndex}: "${lines[headerIndex]}"`);
+
+  if (headerIndex === 0) return raw; // header already first row
   return lines.slice(headerIndex).join('\n');
 }
 

@@ -25,7 +25,9 @@ export function SafeImage({ src, alt, className, fallbackIcon }: SafeImageProps)
     <img
       src={src}
       alt={alt}
-      className={className}
+      // object-contain so brand wordmarks are never cropped; callers control
+      // the box shape (logos use rounded-md, avatars use rounded-full).
+      className={`object-contain ${className ?? ''}`}
       onError={() => setError(true)}
     />
   );

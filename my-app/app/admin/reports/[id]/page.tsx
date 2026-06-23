@@ -11,11 +11,13 @@ import { ReportEditorNarrativeSection } from '@/components/admin/report-editor-n
 import { ReportStatusBadge } from '@/components/admin/report-status-badge';
 import { ReportPublishBar } from '@/components/admin/report-publish-bar';
 import { ReportEditorPriorities } from '@/components/admin/report-editor-priorities';
+import { WidgetVisibilityPanel } from '@/components/admin/widget-visibility-panel';
 import type { ManualPriority } from '@/lib/priority-calculator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Calendar, Building2, RefreshCw, ExternalLink, Save, FileText, Sparkles } from 'lucide-react';
+import { ArrowLeft, Calendar, Building2, RefreshCw, ExternalLink, Save, FileText, Sparkles, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UnifiedMetrics } from '@/lib/metrics-schema';
 
@@ -56,6 +58,7 @@ export default function ReportEditorPage() {
   const [contextHasChanges, setContextHasChanges] = useState(false);
   const [savingContext, setSavingContext] = useState(false);
   const [generatingAll, setGeneratingAll] = useState(false);
+  const [widgetPanelOpen, setWidgetPanelOpen] = useState(false);
 
   const fetchReport = async () => {
     try {
@@ -99,22 +102,25 @@ export default function ReportEditorPage() {
   const handleGenerateAll = async () => {
     setGeneratingAll(true);
     const sections: Array<'executive' | 'technical' | 'traffic'> = ['executive', 'technical', 'traffic'];
-    let succeeded = 0;
     try {
-      // Generate each section sequentially to stay within rate limits.
-      for (const section of sections) {
+      // Fire all three section generations simultaneously.
+      const generateSection = async (section: string): Promise<boolean> => {
         const res = await fetch('/api/generate-summary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ report_id: reportId, section }),
         });
-        const result = await res.json();
+        const result = await res.json().catch(() => ({}));
         if (!res.ok) {
           toast.error(`${section}: ${result.error ?? 'generation failed'}`);
-        } else {
-          succeeded += 1;
+          return false;
         }
-      }
+        return true;
+      };
+
+      const results = await Promise.all(sections.map((s) => generateSection(s)));
+      const succeeded = results.filter(Boolean).length;
+
       await fetchReport();
       if (succeeded === sections.length) {
         toast.success('AI analysis generated for all sections');
@@ -257,6 +263,35 @@ export default function ReportEditorPage() {
               />
             </CardContent>
           </Card>
+
+          {/* Row 0.5: Widget Visibility (collapsible settings drawer) */}
+          <Collapsible open={widgetPanelOpen} onOpenChange={setWidgetPanelOpen}>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <SlidersHorizontal className="h-4 w-4 text-slate-500" />
+                      Client Portal Layout
+                    </CardTitle>
+                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${widgetPanelOpen ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 text-left">
+                    Choose which tables and charts appear on the client-facing report.
+                  </p>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <WidgetVisibilityPanel
+                    reportId={reportId}
+                    initialWidgets={report.visible_widgets}
+                    onSaved={fetchReport}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Row 1: Top Priorities (Full Width, editable) */}
           <ReportEditorPriorities

@@ -29,6 +29,8 @@ import { MetricCard } from './metric-card';
 import { AnalystAnnotation } from './analyst-annotation';
 import { TopPrioritiesCard } from '@/components/admin/top-priorities-card';
 import { resolvePriorities, type ManualPriority } from '@/lib/priority-calculator';
+import { Tooltip as UITooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { ShieldCheck, Info } from 'lucide-react';
 import type { ChannelMetric, GscQuery, SerankingKeyword } from '@/lib/metrics-schema';
 
 interface SEOViewProps {
@@ -54,9 +56,12 @@ interface SEOViewProps {
   visibleWidgets?: Record<string, boolean>;
   reportType?: 'monthly' | 'quarterly';
   manualPriorities?: ManualPriority[] | null;
+  /** AI narratives for the traffic + technical sections (executive = narrativeText). */
+  trafficNarrative?: string;
+  technicalNarrative?: string;
 }
 
-export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, visibleWidgets, reportType = 'monthly', manualPriorities }: SEOViewProps) {
+export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, visibleWidgets, reportType = 'monthly', manualPriorities, trafficNarrative, technicalNarrative }: SEOViewProps) {
   const isVisible = (key: string) => visibleWidgets?.[key] ?? true;
 
   const totalUrls = (metrics.total_urls as number) || 0;
@@ -65,6 +70,18 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
   const errors5xx = (metrics.server_errors_5xx as number) || 0;
   const redirects3xx = (metrics.redirects_3xx as number) || 0;
   const missingH1 = (metrics.missing_h1 as number) || 0;
+
+  // Technical Health Score — mirrors the admin calculation so the client sees
+  // the same headline figure. 100 minus the share of URLs returning 4xx/5xx.
+  const healthScore = totalUrls > 0
+    ? Math.max(0, 100 - ((errors4xx + errors5xx) / totalUrls) * 100)
+    : 100;
+  const healthColor = healthScore >= 90 ? '#059669' : healthScore >= 70 ? '#b45309' : '#dc2626';
+
+  // AI narratives — executive comes via narrativeText; traffic/technical optional.
+  const execNarrative = stripEmojis(narrativeText || '');
+  const trafficNarr = stripEmojis(trafficNarrative || '');
+  const technicalNarr = stripEmojis(technicalNarrative || '');
 
   // ─── Real data mapping (no mock constants) ───────────────────────────
   // Keyword movements come from SE Ranking tracked keywords.
@@ -108,9 +125,6 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
     { name: '5xx Errors', value: errors5xx, fill: '#dc2626' },
   ];
 
-  // Clean narrative text of emojis
-  const cleanNarrative = stripEmojis(narrativeText);
-
   return (
     <div className="space-y-8">
       {/* Header with month selector */}
@@ -129,27 +143,69 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
         <MonthYearSelector reportingMonth={reportingMonth} />
       </div>
 
-      {/* Top Actionable Priorities */}
-      {isVisible('top_priorities') && (
-        <TopPrioritiesCard priorities={resolvePriorities(metrics as any, manualPriorities)} clientColor={clientColor} />
-      )}
-
-      {/* Executive Summary */}
-      {cleanNarrative && (
-        <Card
-          className="border-l-4"
-          style={{ borderLeftColor: clientColor }}
-        >
-          <CardHeader>
-            <CardTitle className="text-base">Executive Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* 1. Executive Summary — sits at the very top of the report */}
+      <Card className="border-l-4" style={{ borderLeftColor: clientColor }}>
+        <CardHeader>
+          <CardTitle className="text-base">Executive Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {execNarrative ? (
             <div className="prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-headings:font-semibold prose-p:text-slate-600 prose-p:leading-relaxed prose-li:text-slate-600 prose-strong:text-slate-800">
-              <ReactMarkdown>{cleanNarrative}</ReactMarkdown>
+              <ReactMarkdown>{execNarrative}</ReactMarkdown>
             </div>
+          ) : (
+            <p className="text-sm text-slate-400 italic">Analysis pending</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 2. Top Actionable Priorities (2/3) + compact Technical Health Score (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {isVisible('top_priorities') && (
+          <div className="lg:col-span-2">
+            <TopPrioritiesCard priorities={resolvePriorities(metrics as any, manualPriorities)} clientColor={clientColor} />
+          </div>
+        )}
+
+        {/* Compact Technical Health Score tile */}
+        <Card className="lg:col-span-1 h-full">
+          <CardContent className="h-full py-6 flex flex-col items-center justify-center text-center gap-3">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-xl"
+              style={{ backgroundColor: `${healthColor}14`, color: healthColor }}
+            >
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Technical Health</h2>
+              <UITooltip>
+                <TooltipTrigger
+                  render={<button type="button" className="text-slate-400 hover:text-slate-600" aria-label="What is this?" />}
+                >
+                  <Info className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Based on site crawlability, indexability, and technical errors.
+                </TooltipContent>
+              </UITooltip>
+            </div>
+            <span className="text-5xl font-bold tracking-tight tabular-nums" style={{ color: healthColor }}>
+              {healthScore.toFixed(0)}%
+            </span>
+            <span className="text-xs text-slate-400">
+              across {totalUrls.toLocaleString()} crawled URLs
+            </span>
           </CardContent>
         </Card>
-      )}
+      </div>
+
+      {/* ── TRAFFIC & VISIBILITY SECTION ─────────────────────────────────
+          The AI narrative introduces the traffic charts/metrics below it. */}
+      <SectionIntro
+        title="Traffic & Visibility"
+        text={trafficNarr}
+        clientColor={clientColor}
+      />
 
       {/* Month-on-Month Performance */}
       {isVisible('mom_comparison') && (
@@ -178,6 +234,14 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
           </CardContent>
         </Card>
       )}
+
+      {/* ── TECHNICAL HEALTH SECTION ─────────────────────────────────────
+          The AI narrative introduces the health score + error metrics below. */}
+      <SectionIntro
+        title="Technical Health"
+        text={technicalNarr}
+        clientColor={clientColor}
+      />
 
       {/* Technical Health Cards */}
       {isVisible('technical_health') && (
@@ -354,6 +418,37 @@ export function SEOView({ metrics, narrativeText, clientColor, reportingMonth, v
           )}
         </CardContent>
       </Card>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A section-introduction block: the AI narrative that sets up the charts and
+ * metrics directly beneath it. Styled as a clean, borderless intro (accent
+ * left rule + section heading + readable prose) rather than an isolated widget,
+ * so it reads as the opening paragraph of each analytical section.
+ */
+function SectionIntro({
+  title,
+  text,
+  clientColor,
+}: {
+  title: string;
+  text: string;
+  clientColor: string;
+}) {
+  return (
+    <div className="pl-4 border-l-2" style={{ borderColor: clientColor }}>
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-900">
+        {title}
+      </h2>
+      {text ? (
+        <div className="prose prose-slate prose-sm max-w-none mt-2 prose-headings:text-slate-900 prose-headings:font-semibold prose-p:text-slate-600 prose-p:leading-relaxed prose-li:text-slate-600 prose-strong:text-slate-800">
+          <ReactMarkdown>{text}</ReactMarkdown>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400 italic mt-2">Analysis pending</p>
       )}
     </div>
   );
