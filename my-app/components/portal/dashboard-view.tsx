@@ -490,7 +490,7 @@ export function DashboardView({
           >
             <div className="h-40 w-full overflow-hidden bg-slate-100">
               <img
-                src="/marketing/seo-health.jpg"
+                src="/marketing/seo-health.png"
                 alt="Running an SEO health check"
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -520,7 +520,7 @@ export function DashboardView({
           >
             <div className="h-40 w-full overflow-hidden bg-slate-900">
               <img
-                src="/marketing/motu-podcast.jpg"
+                src="/marketing/motu-podcast.png"
                 alt="Marketers of the Universe — a Brew Digital podcast"
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}

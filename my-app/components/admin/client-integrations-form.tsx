@@ -46,7 +46,7 @@ const INTEGRATION_FIELDS: IntegrationField[] = [
   {
     key: 'seranking_domain',
     label: 'Target Domain',
-    placeholder: 'northwind.example',
+    placeholder: 'example.com',
     help: 'The bare domain to pull backlinks & authority for (no https:// or trailing slash).',
   },
   {
